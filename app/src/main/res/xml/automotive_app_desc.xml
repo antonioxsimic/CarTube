@@ -2,4 +2,8 @@
 <automotiveApp>
     <uses name="media" />
     <uses name="template" />
+    <uses name="navigation" />
+    <uses name="service" />
+    <uses name="projection" />
 </automotiveApp>
+
