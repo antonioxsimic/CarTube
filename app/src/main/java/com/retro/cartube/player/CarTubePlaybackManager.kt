@@ -25,6 +25,13 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.retro.cartube.lounge.YouTubeLoungeReceiver
 import com.retro.cartube.video.VideoStreamInfo
 import com.retro.cartube.video.YouTubeVideoResolver
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Looper
 import android.os.Handler
 import androidx.media3.common.Format
 import androidx.media3.exoplayer.Renderer
@@ -192,11 +199,62 @@ object CarTubePlaybackManager {
     // History of shared videos
     val videoHistory = mutableListOf<VideoQueueItem>()
 
+    private var isAudioListenerRegistered = false
+
+    private fun registerAudioDisconnectListeners(context: Context) {
+        if (isAudioListenerRegistered) return
+        isAudioListenerRegistered = true
+
+        try {
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            if (audioManager != null) {
+                val audioDeviceCallback = object : AudioDeviceCallback() {
+                    override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
+                        super.onAudioDevicesRemoved(removedDevices)
+                        removedDevices?.forEach { dev ->
+                            val type = dev.type
+                            if (type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                                type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                                type == AudioDeviceInfo.TYPE_USB_DEVICE ||
+                                type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+                                type == AudioDeviceInfo.TYPE_USB_ACCESSORY ||
+                                type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                                type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                                type == AudioDeviceInfo.TYPE_AUX_LINE) {
+                                Log.i(TAG, "Audio device disconnected (type $type) -> auto-pausing playback")
+                                pause()
+                            }
+                        }
+                    }
+                }
+                audioManager.registerAudioDeviceCallback(audioDeviceCallback, Handler(Looper.getMainLooper()))
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "Failed to register AudioDeviceCallback", e)
+        }
+
+        try {
+            val noisyReceiver = object : BroadcastReceiver() {
+                override fun onReceive(c: Context?, intent: Intent?) {
+                    if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                        Log.i(TAG, "ACTION_AUDIO_BECOMING_NOISY received -> auto-pausing playback")
+                        pause()
+                    }
+                }
+            }
+            val filter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+            context.registerReceiver(noisyReceiver, filter)
+        } catch (e: Throwable) {
+            Log.w(TAG, "Failed to register ACTION_AUDIO_BECOMING_NOISY receiver", e)
+        }
+    }
+
     @Synchronized
     fun initialize(context: Context) {
         if (appContext == null) {
             appContext = context.applicationContext
         }
+        registerAudioDisconnectListeners(context.applicationContext)
         if (prefs == null) {
             prefs = context.getSharedPreferences("cartube_prefs", Context.MODE_PRIVATE)
             val savedDelay = prefs?.getString("video_sync_delay_v3", VideoSyncDelay.DELAY_1500.name) ?: VideoSyncDelay.DELAY_1500.name

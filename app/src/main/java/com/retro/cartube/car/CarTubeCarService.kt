@@ -21,4 +21,14 @@ class CarTubeCarService : CarAppService() {
         }
         return CarTubeSession()
     }
+
+    override fun onDestroy() {
+        android.util.Log.i("CarTubeCarService", "Android Auto CarAppService destroyed -> auto-pausing playback")
+        try {
+            CarTubePlaybackManager.pause()
+        } catch (e: Exception) {
+            android.util.Log.w("CarTubeCarService", "Error pausing on service destroy", e)
+        }
+        super.onDestroy()
+    }
 }
