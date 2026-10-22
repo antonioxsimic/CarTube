@@ -30,12 +30,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 enum class AudioSyncDelay(val delayMs: Long, val label: String, val shortName: String) {
-    DELAY_2000(2000L, "Odgoda 2.0s (BMW BT)", "⏱ +2.0s"),
-    DELAY_2500(2500L, "Odgoda 2.5s", "⏱ +2.5s"),
-    OFF(0L, "Isključeno (0s)", "⏱ 0.0s"),
-    DELAY_500(500L, "Odgoda 0.5s", "⏱ +0.5s"),
-    DELAY_1000(1000L, "Odgoda 1.0s", "⏱ +1.0s"),
-    DELAY_1500(1500L, "Odgoda 1.5s", "⏱ +1.5s")
+    DELAY_400(400L, "+400 ms (BMW BT)", "⏱ +0.4s"),
+    DELAY_600(600L, "+600 ms (BMW BT)", "⏱ +0.6s"),
+    DELAY_800(800L, "+800 ms", "⏱ +0.8s"),
+    DELAY_1000(1000L, "+1.0s", "⏱ +1.0s"),
+    DELAY_1500(1500L, "+1.5s", "⏱ +1.5s"),
+    DELAY_2000(2000L, "+2.0s", "⏱ +2.0s"),
+    OFF(0L, "0 ms (Isključeno)", "⏱ 0.0s"),
+    DELAY_200(200L, "+200 ms", "⏱ +0.2s")
 }
 
 enum class VideoQuality(val targetHeight: Int, val label: String, val shortName: String) {
@@ -86,8 +88,8 @@ object CarTubePlaybackManager {
     private val _scaleMode = MutableStateFlow(VideoScaleMode.FIT)
     val scaleMode = _scaleMode.asStateFlow()
 
-    // Audio sync delay (Default 2.0s as requested to eliminate Bluetooth car lag)
-    private val _audioSyncDelay = MutableStateFlow(AudioSyncDelay.DELAY_2000)
+    // Audio sync delay (Default +400ms for BMW iDrive Bluetooth latency)
+    private val _audioSyncDelay = MutableStateFlow(AudioSyncDelay.DELAY_400)
     val audioSyncDelay = _audioSyncDelay.asStateFlow()
 
     // Video Quality Preference (Default 1080p Full HD for maximum sharpness)
@@ -131,11 +133,11 @@ object CarTubePlaybackManager {
         }
         if (prefs == null) {
             prefs = context.getSharedPreferences("cartube_prefs", Context.MODE_PRIVATE)
-            val savedDelay = prefs?.getString("audio_sync_delay", AudioSyncDelay.DELAY_2000.name) ?: AudioSyncDelay.DELAY_2000.name
+            val savedDelay = prefs?.getString("audio_sync_delay", AudioSyncDelay.DELAY_400.name) ?: AudioSyncDelay.DELAY_400.name
             val delay = try {
                 AudioSyncDelay.valueOf(savedDelay)
             } catch (_: Exception) {
-                AudioSyncDelay.DELAY_2000
+                AudioSyncDelay.DELAY_400
             }
             _audioSyncDelay.value = delay
             Log.i(TAG, "Audio sync delay initialized: ${delay.label}")

@@ -217,6 +217,17 @@ class CarTubeScreen(carContext: CarContext) : Screen(carContext) {
                     .build()
             )
 
+            stripBuilder.addAction(
+                Action.Builder()
+                    .setIcon(syncIcon)
+                    .setOnClickListener {
+                        val next = CarTubePlaybackManager.cycleAudioSyncDelay()
+                        androidx.car.app.CarToast.makeText(carContext, "Audio Sync: ${next.label}", androidx.car.app.CarToast.LENGTH_SHORT).show()
+                        invalidate()
+                    }
+                    .build()
+            )
+
             // 2. SIDE ACTION STRIP (Ispod desno: Fit/Stretch, Quality, Kill video)
             // User requested order: Fit/Stretch, Quality, Kill video (clean icons, no text)
             mapStripBuilder.addAction(
