@@ -25,19 +25,27 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.retro.cartube.lounge.YouTubeLoungeReceiver
 import com.retro.cartube.video.VideoStreamInfo
 import com.retro.cartube.video.YouTubeVideoResolver
+import android.os.Handler
+import androidx.media3.common.Format
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
+import androidx.media3.exoplayer.video.VideoRendererEventListener
+import java.nio.ByteBuffer
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class AudioSyncDelay(val delayMs: Long, val label: String, val shortName: String) {
+enum class VideoSyncDelay(val delayMs: Long, val label: String, val shortName: String) {
+    OFF(0L, "0 ms (Bez odgode)", "⏱ 0.0s"),
+    DELAY_200(200L, "+200 ms", "⏱ +0.2s"),
     DELAY_400(400L, "+400 ms (BMW BT)", "⏱ +0.4s"),
     DELAY_600(600L, "+600 ms (BMW BT)", "⏱ +0.6s"),
     DELAY_800(800L, "+800 ms", "⏱ +0.8s"),
     DELAY_1000(1000L, "+1.0s", "⏱ +1.0s"),
     DELAY_1500(1500L, "+1.5s", "⏱ +1.5s"),
-    DELAY_2000(2000L, "+2.0s", "⏱ +2.0s"),
-    OFF(0L, "0 ms (Isključeno)", "⏱ 0.0s"),
-    DELAY_200(200L, "+200 ms", "⏱ +0.2s")
+    DELAY_2000(2000L, "+2.0s", "⏱ +2.0s")
 }
 
 enum class VideoQuality(val targetHeight: Int, val label: String, val shortName: String) {
@@ -45,22 +53,61 @@ enum class VideoQuality(val targetHeight: Int, val label: String, val shortName:
     HD_720P(720, "720p HD (Ušteda podataka)", "🎬 720p")
 }
 
-class BluetoothDelayAudioSink(
-    delegate: AudioSink,
-    private val getDelayMs: () -> Long
-) : ForwardingAudioSink(delegate) {
-
-    override fun getCurrentPositionUs(sourceEnded: Boolean): Long {
-        val rawPositionUs = super.getCurrentPositionUs(sourceEnded)
-        if (rawPositionUs == C.TIME_UNSET) return C.TIME_UNSET
-
-        val delayMs = getDelayMs()
-        if (delayMs == 0L) return rawPositionUs
-
-        val delayUs = delayMs * 1000L
-        // Subtract delayUs from master audio clock so video renderer waits delayMs,
-        // syncing video with the car's Bluetooth latency!
-        return (rawPositionUs - delayUs).coerceAtLeast(0L)
+/**
+ * Custom MediaCodecVideoRenderer that delays video frames by videoDelayMs
+ * so that video presentation perfectly matches car Bluetooth audio latency.
+ * Audio is left completely untouched and plays at full native speed.
+ */
+class DelayedMediaCodecVideoRenderer(
+    context: Context,
+    mediaCodecSelector: MediaCodecSelector,
+    allowedVideoJoiningTimeMs: Long,
+    enableDecoderFallback: Boolean,
+    eventHandler: Handler,
+    eventListener: VideoRendererEventListener,
+    maxDroppedFramesToNotify: Int,
+    private val getVideoDelayMs: () -> Long
+) : MediaCodecVideoRenderer(
+    context,
+    mediaCodecSelector,
+    allowedVideoJoiningTimeMs,
+    enableDecoderFallback,
+    eventHandler,
+    eventListener,
+    maxDroppedFramesToNotify
+) {
+    override fun processOutputBuffer(
+        positionUs: Long,
+        elapsedRealtimeUs: Long,
+        codec: MediaCodecAdapter?,
+        buffer: ByteBuffer?,
+        bufferIndex: Int,
+        bufferFlags: Int,
+        sampleCount: Int,
+        bufferPresentationTimeUs: Long,
+        isDecodeOnlyBuffer: Boolean,
+        isLastBuffer: Boolean,
+        format: Format
+    ): Boolean {
+        val delayMs = getVideoDelayMs()
+        val effectivePositionUs = if (delayMs > 0L) {
+            (positionUs - (delayMs * 1000L)).coerceAtLeast(0L)
+        } else {
+            positionUs
+        }
+        return super.processOutputBuffer(
+            effectivePositionUs,
+            elapsedRealtimeUs,
+            codec,
+            buffer,
+            bufferIndex,
+            bufferFlags,
+            sampleCount,
+            bufferPresentationTimeUs,
+            isDecodeOnlyBuffer,
+            isLastBuffer,
+            format
+        )
     }
 }
 
@@ -88,9 +135,9 @@ object CarTubePlaybackManager {
     private val _scaleMode = MutableStateFlow(VideoScaleMode.FIT)
     val scaleMode = _scaleMode.asStateFlow()
 
-    // Audio sync delay (Default +400ms for BMW iDrive Bluetooth latency)
-    private val _audioSyncDelay = MutableStateFlow(AudioSyncDelay.DELAY_400)
-    val audioSyncDelay = _audioSyncDelay.asStateFlow()
+    // Video sync delay (Delays video to match Bluetooth audio latency)
+    private val _videoSyncDelay = MutableStateFlow(VideoSyncDelay.DELAY_400)
+    val videoSyncDelay = _videoSyncDelay.asStateFlow()
 
     // Video Quality Preference (Default 1080p Full HD for maximum sharpness)
     private val _videoQuality = MutableStateFlow(VideoQuality.FULL_HD_1080P)
@@ -133,14 +180,14 @@ object CarTubePlaybackManager {
         }
         if (prefs == null) {
             prefs = context.getSharedPreferences("cartube_prefs", Context.MODE_PRIVATE)
-            val savedDelay = prefs?.getString("audio_sync_delay", AudioSyncDelay.DELAY_400.name) ?: AudioSyncDelay.DELAY_400.name
+            val savedDelay = prefs?.getString("video_sync_delay", VideoSyncDelay.DELAY_400.name) ?: VideoSyncDelay.DELAY_400.name
             val delay = try {
-                AudioSyncDelay.valueOf(savedDelay)
+                VideoSyncDelay.valueOf(savedDelay)
             } catch (_: Exception) {
-                AudioSyncDelay.DELAY_400
+                VideoSyncDelay.DELAY_400
             }
-            _audioSyncDelay.value = delay
-            Log.i(TAG, "Audio sync delay initialized: ${delay.label}")
+            _videoSyncDelay.value = delay
+            Log.i(TAG, "Video sync delay initialized: ${delay.label}")
 
             val savedQuality = prefs?.getString("video_quality", VideoQuality.FULL_HD_1080P.name) ?: VideoQuality.FULL_HD_1080P.name
             val quality = try {
@@ -171,16 +218,27 @@ object CarTubePlaybackManager {
                     .build()
 
                 val renderersFactory = object : DefaultRenderersFactory(context.applicationContext) {
-                    override fun buildAudioSink(
+                    override fun buildVideoRenderers(
                         context: Context,
-                        enableFloatOutput: Boolean,
-                        enableAudioTrackPlaybackParams: Boolean
-                    ): AudioSink? {
-                        val defaultAudioSink = DefaultAudioSink.Builder(context)
-                            .setEnableFloatOutput(enableFloatOutput)
-                            .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                            .build()
-                        return BluetoothDelayAudioSink(defaultAudioSink) { _audioSyncDelay.value.delayMs }
+                        extensionRendererMode: Int,
+                        mediaCodecSelector: MediaCodecSelector,
+                        enableDecoderFallback: Boolean,
+                        eventHandler: Handler,
+                        eventListener: VideoRendererEventListener,
+                        allowedVideoJoiningTimeMs: Long,
+                        out: ArrayList<Renderer>
+                    ) {
+                        out.add(
+                            DelayedMediaCodecVideoRenderer(
+                                context,
+                                mediaCodecSelector,
+                                allowedVideoJoiningTimeMs,
+                                enableDecoderFallback,
+                                eventHandler,
+                                eventListener,
+                                50
+                            ) { _videoSyncDelay.value.delayMs }
+                        )
                     }
                 }
 
@@ -421,16 +479,16 @@ object CarTubePlaybackManager {
         return next
     }
 
-    fun setAudioSyncDelay(delay: AudioSyncDelay) {
-        _audioSyncDelay.value = delay
-        prefs?.edit()?.putString("audio_sync_delay", delay.name)?.apply()
-        Log.i(TAG, "Audio sync delay set to: ${delay.label}")
+    fun setVideoSyncDelay(delay: VideoSyncDelay) {
+        _videoSyncDelay.value = delay
+        prefs?.edit()?.putString("video_sync_delay", delay.name)?.apply()
+        Log.i(TAG, "Video sync delay set to: ${delay.label}")
     }
 
-    fun cycleAudioSyncDelay(): AudioSyncDelay {
-        val values = AudioSyncDelay.values()
-        val next = values[(_audioSyncDelay.value.ordinal + 1) % values.size]
-        setAudioSyncDelay(next)
+    fun cycleVideoSyncDelay(): VideoSyncDelay {
+        val values = VideoSyncDelay.values()
+        val next = values[(_videoSyncDelay.value.ordinal + 1) % values.size]
+        setVideoSyncDelay(next)
         return next
     }
 

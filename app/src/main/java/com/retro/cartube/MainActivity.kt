@@ -83,8 +83,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnAudioSync.setOnClickListener {
-            val next = CarTubePlaybackManager.cycleAudioSyncDelay()
-            Toast.makeText(this, "Audio Sync: ${next.label}", Toast.LENGTH_SHORT).show()
+            val next = CarTubePlaybackManager.cycleVideoSyncDelay()
+            Toast.makeText(this, "Odgoda videa: ${next.label}", Toast.LENGTH_SHORT).show()
         }
 
         btnQuality.setOnClickListener {
@@ -146,7 +146,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
-            CarTubePlaybackManager.audioSyncDelay.collect { sync ->
+            CarTubePlaybackManager.videoSyncDelay.collect { sync ->
                 btnAudioSync.text = sync.shortName
             }
         }

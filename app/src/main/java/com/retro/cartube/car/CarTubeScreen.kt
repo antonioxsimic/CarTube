@@ -148,7 +148,7 @@ class CarTubeScreen(carContext: CarContext) : Screen(carContext) {
             CarTubePlaybackManager.scaleMode.collect { invalidate() }
         }
         scope.launch {
-            CarTubePlaybackManager.audioSyncDelay.collect { invalidate() }
+            CarTubePlaybackManager.videoSyncDelay.collect { invalidate() }
         }
         scope.launch {
             CarTubePlaybackManager.videoQuality.collect { invalidate() }
@@ -221,8 +221,8 @@ class CarTubeScreen(carContext: CarContext) : Screen(carContext) {
                 Action.Builder()
                     .setIcon(syncIcon)
                     .setOnClickListener {
-                        val next = CarTubePlaybackManager.cycleAudioSyncDelay()
-                        androidx.car.app.CarToast.makeText(carContext, "Audio Sync: ${next.label}", androidx.car.app.CarToast.LENGTH_SHORT).show()
+                        val next = CarTubePlaybackManager.cycleVideoSyncDelay()
+                        androidx.car.app.CarToast.makeText(carContext, "Odgoda videa: ${next.label}", androidx.car.app.CarToast.LENGTH_SHORT).show()
                         invalidate()
                     }
                     .build()
