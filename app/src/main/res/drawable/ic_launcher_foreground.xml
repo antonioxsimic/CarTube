@@ -1,0 +1,45 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Center group -->
+    <group
+        android:scaleX="0.75"
+        android:scaleY="0.75"
+        android:translateX="13.5"
+        android:translateY="13.5">
+
+        <!-- YouTube Red Badge -->
+        <path
+            android:fillColor="#FF0000"
+            android:pathData="M24,18 L84,18 C100,18 104,26 104,54 C104,82 100,90 84,90 L24,90 C8,90 4,82 4,54 C4,26 8,18 24,18 Z" />
+
+        <!-- Play Triangle -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M44,34 L66,48 L44,62 Z" />
+
+        <!-- Sleek Car Silhouette -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M20,78 L26,78 C27,74 31,71 35,71 C39,71 43,74 44,78 L64,78 C65,74 69,71 73,71 C77,71 81,74 82,78 L88,78 C90,78 91,76 90,74 L87,70 C85,67 82,66 78,66 L68,66 L60,60 C58,58 55,57 52,57 L38,57 C34,57 31,59 29,62 L24,68 L20,71 C18,73 18,78 20,78 Z" />
+
+        <!-- Wheels -->
+        <path
+            android:fillColor="#0F0F0F"
+            android:pathData="M35,73 A4,4 0 1,1 35,81 A4,4 0 1,1 35,73 Z" />
+        <path
+            android:fillColor="#0F0F0F"
+            android:pathData="M73,73 A4,4 0 1,1 73,81 A4,4 0 1,1 73,73 Z" />
+
+        <!-- Windows -->
+        <path
+            android:fillColor="#FF0000"
+            android:pathData="M38,60 L50,60 L50,65 L32,65 Z" />
+        <path
+            android:fillColor="#FF0000"
+            android:pathData="M53,60 L60,60 L67,65 L53,65 Z" />
+    </group>
+</vector>

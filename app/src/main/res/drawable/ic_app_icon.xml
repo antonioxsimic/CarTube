@@ -1,0 +1,50 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp"
+    android:height="128dp"
+    android:viewportWidth="128"
+    android:viewportHeight="128">
+
+    <!-- Dark rounded background -->
+    <path
+        android:fillColor="#0F0F0F"
+        android:pathData="M16,0 L112,0 A16,16 0 0,1 128,16 L128,112 A16,16 0 0,1 112,128 L16,128 A16,16 0 0,1 0,112 L0,16 A16,16 0 0,1 16,0 Z" />
+
+    <!-- YouTube Red Pill / Screen Shape -->
+    <path
+        android:fillColor="#FF0000"
+        android:pathData="M32,24 L96,24 C112,24 116,32 116,64 C116,96 112,104 96,104 L32,104 C16,104 12,96 12,64 C12,32 16,24 32,24 Z" />
+
+    <!-- Play Triangle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50,42 L74,56 L50,70 Z" />
+
+    <!-- Sleek Streamlined Car Silhouette in lower portion of the red badge -->
+    <!-- Car body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,88 L35,88 C36,83 41,80 46,80 C51,80 56,83 57,88 L75,88 C76,83 81,80 86,80 C91,80 96,83 97,88 L102,88 C104,88 106,86 105,84 L102,79 C100,76 96,75 92,75 L80,75 L70,68 C68,66 64,65 60,65 L44,65 C40,65 37,67 35,70 L30,77 L26,81 C24,83 25,88 28,88 Z" />
+
+    <!-- Car wheels -->
+    <path
+        android:fillColor="#0F0F0F"
+        android:pathData="M46,82 A5,5 0 1,1 46,92 A5,5 0 1,1 46,82 Z" />
+    <path
+        android:fillColor="#0F0F0F"
+        android:pathData="M86,82 A5,5 0 1,1 86,92 A5,5 0 1,1 86,82 Z" />
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,85 A2,2 0 1,1 46,89 A2,2 0 1,1 46,85 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M86,85 A2,2 0 1,1 86,89 A2,2 0 1,1 86,85 Z" />
+
+    <!-- Car Windows -->
+    <path
+        android:fillColor="#FF0000"
+        android:pathData="M44,68 L58,68 L58,74 L38,74 Z" />
+    <path
+        android:fillColor="#FF0000"
+        android:pathData="M61,68 L68,68 L77,74 L61,74 Z" />
+</vector>

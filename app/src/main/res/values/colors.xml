@@ -1,0 +1,8 @@
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="yt_red">#FFFF0033</color>
+    <color name="yt_dark">#FF0F0F0F</color>
+    <color name="yt_card">#FF1E1E1E</color>
+    <color name="yt_text_muted">#FFAAAAAA</color>
+</resources>
