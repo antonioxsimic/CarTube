@@ -3,6 +3,7 @@
     <uses name="media" />
     <uses name="template" />
     <uses name="navigation" />
+    <uses name="notification" />
     <uses name="service" />
     <uses name="projection" />
 </automotiveApp>
