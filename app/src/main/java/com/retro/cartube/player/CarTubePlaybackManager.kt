@@ -39,13 +39,13 @@ import kotlinx.coroutines.flow.asStateFlow
 
 enum class VideoSyncDelay(val delayMs: Long, val label: String, val shortName: String) {
     OFF(0L, "0 ms (Bez odgode)", "⏱ 0.0s"),
-    DELAY_200(200L, "+200 ms", "⏱ +0.2s"),
-    DELAY_400(400L, "+400 ms (BMW BT)", "⏱ +0.4s"),
-    DELAY_600(600L, "+600 ms (BMW BT)", "⏱ +0.6s"),
-    DELAY_800(800L, "+800 ms", "⏱ +0.8s"),
-    DELAY_1000(1000L, "+1.0s", "⏱ +1.0s"),
-    DELAY_1500(1500L, "+1.5s", "⏱ +1.5s"),
-    DELAY_2000(2000L, "+2.0s", "⏱ +2.0s")
+    DELAY_500(500L, "+500 ms (0.5s)", "⏱ +0.5s"),
+    DELAY_1000(1000L, "+1000 ms (1.0s)", "⏱ +1.0s"),
+    DELAY_1200(1200L, "+1200 ms (1.2s)", "⏱ +1.2s"),
+    DELAY_1500(1500L, "+1500 ms (1.5s - BMW)", "⏱ +1.5s"),
+    DELAY_1800(1800L, "+1800 ms (1.8s)", "⏱ +1.8s"),
+    DELAY_2000(2000L, "+2000 ms (2.0s)", "⏱ +2.0s"),
+    DELAY_2500(2500L, "+2500 ms (2.5s)", "⏱ +2.5s")
 }
 
 enum class VideoQuality(val targetHeight: Int, val label: String, val shortName: String) {
@@ -76,6 +76,13 @@ class DelayedMediaCodecVideoRenderer(
     eventListener,
     maxDroppedFramesToNotify
 ) {
+
+    override fun isReady(): Boolean {
+        // While waiting for initial Bluetooth audio delay (e.g. 1.5s), report ready
+        // so ExoPlayer plays audio without dropping into STATE_BUFFERING
+        return super.isReady() || (state == STATE_STARTED)
+    }
+
     override fun processOutputBuffer(
         positionUs: Long,
         elapsedRealtimeUs: Long,
@@ -90,11 +97,23 @@ class DelayedMediaCodecVideoRenderer(
         format: Format
     ): Boolean {
         val delayMs = getVideoDelayMs()
-        val effectivePositionUs = if (delayMs > 0L) {
-            (positionUs - (delayMs * 1000L)).coerceAtLeast(0L)
+        val delayUs = delayMs * 1000L
+
+        if (delayUs > 0L) {
+            // Check if audio has played enough (by delayUs) beyond this frame's presentation time.
+            // When user hits PLAY: audio starts at positionUs = 0, but frame 0 (presentation time 0)
+            // will wait until positionUs >= delayUs (e.g. 1.5 seconds) before rendering.
+            if (positionUs < bufferPresentationTimeUs + delayUs) {
+                return false
+            }
+        }
+
+        val effectivePositionUs = if (delayUs > 0L) {
+            positionUs - delayUs
         } else {
             positionUs
         }
+
         return super.processOutputBuffer(
             effectivePositionUs,
             elapsedRealtimeUs,
@@ -136,7 +155,7 @@ object CarTubePlaybackManager {
     val scaleMode = _scaleMode.asStateFlow()
 
     // Video sync delay (Delays video to match Bluetooth audio latency)
-    private val _videoSyncDelay = MutableStateFlow(VideoSyncDelay.DELAY_400)
+    private val _videoSyncDelay = MutableStateFlow(VideoSyncDelay.DELAY_1500)
     val videoSyncDelay = _videoSyncDelay.asStateFlow()
 
     // Video Quality Preference (Default 1080p Full HD for maximum sharpness)
@@ -180,11 +199,11 @@ object CarTubePlaybackManager {
         }
         if (prefs == null) {
             prefs = context.getSharedPreferences("cartube_prefs", Context.MODE_PRIVATE)
-            val savedDelay = prefs?.getString("video_sync_delay", VideoSyncDelay.DELAY_400.name) ?: VideoSyncDelay.DELAY_400.name
+            val savedDelay = prefs?.getString("video_sync_delay_v3", VideoSyncDelay.DELAY_1500.name) ?: VideoSyncDelay.DELAY_1500.name
             val delay = try {
                 VideoSyncDelay.valueOf(savedDelay)
             } catch (_: Exception) {
-                VideoSyncDelay.DELAY_400
+                VideoSyncDelay.DELAY_1500
             }
             _videoSyncDelay.value = delay
             Log.i(TAG, "Video sync delay initialized: ${delay.label}")
@@ -314,10 +333,12 @@ object CarTubePlaybackManager {
                         if (p != null) {
                             val pos = p.currentPosition.coerceAtLeast(0L)
                             val dur = p.duration.coerceAtLeast(0L)
-                            _currentPosition.value = pos
+                            val delayMs = _videoSyncDelay.value.delayMs
+                            val visualPos = if (delayMs > 0L) (pos - delayMs).coerceAtLeast(0L) else pos
+                            _currentPosition.value = visualPos
                             _duration.value = dur
                             if (_isSeekbarVisible.value) {
-                                videoRenderer?.updateSeekbar(pos, dur, p.isPlaying)
+                                videoRenderer?.updateSeekbar(visualPos, dur, p.isPlaying)
                             }
                         }
                         delay(250)
@@ -481,7 +502,7 @@ object CarTubePlaybackManager {
 
     fun setVideoSyncDelay(delay: VideoSyncDelay) {
         _videoSyncDelay.value = delay
-        prefs?.edit()?.putString("video_sync_delay", delay.name)?.apply()
+        prefs?.edit()?.putString("video_sync_delay_v3", delay.name)?.apply()
         Log.i(TAG, "Video sync delay set to: ${delay.label}")
     }
 
