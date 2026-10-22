@@ -81,15 +81,13 @@
             </intent-filter>
         </activity>
 
-        <!-- Media Browser Service for Android Auto Launcher Discovery & Return-to-Video -->
+        <!-- CarTubeMediaService disabled so AA never treats CarTube as an audio player -->
         <service
             android:name=".service.CarTubeMediaService"
             android:label="@string/car_app_name"
             android:icon="@drawable/ic_app_icon"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.media.browse.MediaBrowserService" />
-            </intent-filter>
+            android:enabled="false"
+            android:exported="false">
         </service>
 
         <!-- Android Auto Fullscreen Car Service -->
