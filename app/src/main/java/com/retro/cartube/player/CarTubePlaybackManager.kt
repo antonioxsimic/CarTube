@@ -103,14 +103,34 @@ class DelayedMediaCodecVideoRenderer(
         isLastBuffer: Boolean,
         format: Format
     ): Boolean {
+        // Preroll/decode-only frames (after seek or when casting at specific timestamp)
+        // must be skipped immediately so decoder can advance to real displayable frames!
+        if (isDecodeOnlyBuffer) {
+            return super.processOutputBuffer(
+                positionUs,
+                elapsedRealtimeUs,
+                codec,
+                buffer,
+                bufferIndex,
+                bufferFlags,
+                sampleCount,
+                bufferPresentationTimeUs,
+                isDecodeOnlyBuffer,
+                isLastBuffer,
+                format
+            )
+        }
+
         val delayMs = getVideoDelayMs()
         val delayUs = delayMs * 1000L
 
-        if (delayUs > 0L) {
+        // In ExoPlayer, bufferPresentationTimeUs includes outputStreamOffsetUs.
+        // We subtract outputStreamOffsetUs to get the true timeline presentation timestamp!
+        val presentationTimeUs = bufferPresentationTimeUs - outputStreamOffsetUs
+
+        if (delayUs > 0L && !isLastBuffer) {
             // Check if audio has played enough (by delayUs) beyond this frame's presentation time.
-            // When user hits PLAY: audio starts at positionUs = 0, but frame 0 (presentation time 0)
-            // will wait until positionUs >= delayUs (e.g. 1.5 seconds) before rendering.
-            if (positionUs < bufferPresentationTimeUs + delayUs) {
+            if (positionUs < presentationTimeUs + delayUs) {
                 return false
             }
         }
